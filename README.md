@@ -7,7 +7,7 @@ Small systems and algorithms projects: game design, data structures, parsers, an
 ## Structure
 
 ```
-applied-cs-projects/
+cs-projects/
 README.md
 projects/
 example-game/ <- rename per project
