@@ -4,18 +4,18 @@ A simple, single-player Battleship game you can play directly in your browser: c
 
 ## Why this exists
 
-Skill goal: build a small, genuinely interactive, rules-based game that a complete stranger could open and play without any setup or instructions from me, and that explains its own rules to someone who has never played Battleship before.
+Skill goal: build a small, genuinely interactive, rules-based game that a complete stranger could open and play without any setup from me, and that explains its own rules to someone who has never played Battleship before.
 
 ## Stack
 
 Plain HTML, CSS, and JavaScript in a single file. No frameworks, no dependencies, no build tool. Open `index.html` in any modern browser and it runs.
 
-## How this differs from a typical class assignment
+## Design notes
 
-This is a from-scratch, original implementation, not a repost of coursework. A few deliberate differences from the kind of console-based Battleship project you'd see in an intro CS class:
+A few notes on the design choices behind this implementation:
 
-- **Runs in a browser, not a terminal.** The whole game is one HTML file with inline CSS and JavaScript, played with mouse clicks instead of typed coordinates.
-- **Includes a built-in rules and background panel.** The game explains what Battleship is, where it came from, and how to play, written for someone who has never played it before, not just for a grader who already knows the assignment spec.
+- **Runs entirely in the browser.** The whole game is one HTML file with inline CSS and JavaScript, played with mouse clicks.
+- **Includes a built-in rules and background panel.** The game explains what Battleship is, where it came from, and how to play, written for someone who has never played it before.
 - **Own AI design.** The computer opponent uses a simple two-mode targeting strategy (random search, then hunt the four neighbors of a confirmed hit) implemented from scratch for this project.
 - **Simplified, smaller ruleset.** An 8-by-8 grid with 4 ships instead of the classic 10-by-10 grid with 5 ships, to keep games short and approachable for a casual player.
 
