@@ -20,14 +20,18 @@ public final class PassphraseGenerator {
 
         int listSize = WordList.WORDS.size();
         String[] chosen = new String[wordCount];
+        // pick each word independently and uniformly at random, with replacement,
+        // so the same word can appear twice, this keeps the entropy math simple
         for (int i = 0; i < wordCount; i++) {
             String word = WordList.WORDS.get(random.nextInt(listSize));
             chosen[i] = capitalize ? capitalize(word) : word;
         }
 
+        // each word contributes log2(list size) bits, independent of the others
         double entropyBits = wordCount * (Math.log(listSize) / Math.log(2));
 
         StringBuilder result = new StringBuilder();
+        // join the chosen words with the separator, but skip it after the last word
         for (int i = 0; i < wordCount; i++) {
             result.append(chosen[i]);
             if (i < wordCount - 1) {
@@ -36,6 +40,8 @@ public final class PassphraseGenerator {
         }
 
         if (includeDigit) {
+            // a single random digit appended to the end, its entropy contribution
+            // accounts for both the digit itself and which word it could have followed
             int digit = random.nextInt(10);
             result.append(digit);
             entropyBits += Math.log(10.0 * wordCount) / Math.log(2);
@@ -45,6 +51,8 @@ public final class PassphraseGenerator {
     }
 
     private String capitalize(String word) {
+        // defensive check, the word list never contains empty strings, but this
+        // keeps the method safe to reuse if that ever changes
         if (word.isEmpty()) {
             return word;
         }
