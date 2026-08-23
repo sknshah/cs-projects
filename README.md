@@ -10,13 +10,13 @@ Small systems and algorithms projects: game design, data structures, parsers, an
 cs-projects/
 README.md
 projects/
-example-game/ <- rename per project
 inventory-rental-system/ <- role-based rental/checkout system, python + sqlite
+battleship/ <- simple, single-player battleship game, html + css + javascript
 ```
 
 ## Projects
 
 | Project | Concept area | Description |
 |---|---|---|
-| [example-game](projects/example-game) | *placeholder, e.g. "grid-based strategy game"* | *placeholder* |
 | [inventory-rental-system](projects/inventory-rental-system) | business logic, relational data, concurrency | Role-based equipment rental/checkout system: category rules, late fees, reservations, and concurrency-safe checkout, built on Python and SQLite. |
+| [battleship](projects/battleship) | interactive game design, event-driven UI | A simple, single-player Battleship game playable in the browser, with a built-in rules and background panel and a from-scratch computer opponent. |
