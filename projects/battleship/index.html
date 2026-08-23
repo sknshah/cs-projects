@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battleship: A Simple Browser Game</title>
+<style>
+  /* keeping everything in one file on purpose, no build step, just open it */
+  :root {
+    --water: #0b3d5c;
+    --water-light: #145a86;
+    --hit: #d64541;
+    --miss: #dfe9f2;
+    --ship: #2f4858;
+    --sunk: #7a1f1a;
+    --panel: #f4f7fa;
+    --text: #142433;
+    --accent: #1e88b0;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--panel);
+    color: var(--text);
+    margin: 0;
+    padding: 24px;
+    line-height: 1.5;
+  }
+
+  h1 { margin-bottom: 4px; }
+
+  .subtitle { color: #45606f; margin-top: 0; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  details.rules {
+    background: #fff;
+    border: 1px solid #dbe4ea;
+    border-radius: 10px;
+    padding: 12px 18px;
+  }
+
+  details.rules summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+
+  details.rules h3 { margin-bottom: 4px; }
+  details.rules ul { margin-top: 4px; }
+
+  .game-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .board-block { text-align: center; }
+
+  .board-block h2 { margin-bottom: 8px; font-size: 1.1rem; }
+
+  .board {
+    display: grid;
+    /* columns get set inline based on board size */
+    gap: 3px;
+    background: var(--water);
+    padding: 6px;
+    border-radius: 8px;
+  }
+
+  .cell {
+    width: 34px;
+    height: 34px;
+    background: var(--water-light);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #eaf2f8;
+    user-select: none;
+  }
+
+  .cell.own.ship { background: var(--ship); }
+  .cell.hit { background: var(--hit); }
+  .cell.miss { background: var(--miss); color: #0b3d5c; }
+  .cell.sunk { background: var(--sunk); }
+
+  .enemy .cell {
+    cursor: pointer;
+    transition: filter 0.1s ease;
+  }
+
+  .enemy .cell:hover { filter: brightness(1.25); }
+  .enemy .cell.hit, .enemy .cell.miss, .enemy .cell.sunk { cursor: default; }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+
+  button:hover { filter: brightness(1.1); }
+
+  #status {
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    min-height: 1.4em;
+  }
+
+  #log {
+    max-width: 560px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #dbe4ea;
+    border-radius: 8px;
+    padding: 10px 14px;
+    height: 160px;
+    overflow-y: auto;
+    font-size: 0.9rem;
+  }
+
+  #log p { margin: 3px 0; }
+  #log p.you { color: #1e6b8c; }
+  #log p.cpu { color: #8c3a1e; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+
+  footer {
+    text-align: center;
+    color: #6b7f8c;
+    font-size: 0.8rem;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <div>
+    <h1>Battleship</h1>
+    <p class="subtitle">A simple, single-player version you can play against the computer, right in your browser.</p>
+  </div>
+
+  <details class="rules" open>
+    <summary>What is Battleship, and how do you play? (click to collapse)</summary>
+
+    <h3>Background</h3>
+    <p>
+      Battleship is a classic guessing game for two players. It started out as a pencil-and-paper
+      game that people played by hand, long before it became a mass-produced board game.
+      Milton Bradley released the plastic grid version most people picture in 1967, and the same
+      basic idea has since shown up in video games, apps, and even a feature film. The rules
+      below describe the simplified, single-player version implemented on this page.
+    </p>
+
+    <h3>The Idea</h3>
+    <p>
+      Each side secretly places a fleet of ships on a grid. On your turn you call out a coordinate
+      on your opponent's grid, trying to guess where their ships are hiding. Your opponent tells you
+      whether that shot was a hit or a miss. Once every square a ship occupies has been hit, that
+      ship is sunk. The first player to sink the other side's entire fleet wins.
+    </p>
+
+    <h3>The Rules Used Here</h3>
+    <ul>
+      <li>The board is an 8-by-8 grid, columns A through H and rows 1 through 8.</li>
+      <li>Your fleet and the computer's fleet are placed randomly and secretly at the start of each game.</li>
+      <li>The fleet has 4 ships: a Carrier (4 squares), a Cruiser (3 squares), a Submarine (3 squares), and a Destroyer (2 squares).</li>
+      <li>Ships are placed in a straight line, horizontally or vertically, and never overlap another ship.</li>
+      <li>You and the computer take turns. Click a square on the "Enemy Waters" board to fire at that square.</li>
+      <li>A red square means a hit, a light square means a miss. Once every square of a ship has been hit, it is announced as sunk.</li>
+      <li>The game ends the moment one side's entire fleet has been sunk.</li>
+    </ul>
+  </details>
+
+  <div id="status">Place your bets, the fleets are ready.</div>
+
+  <div class="game-area">
+    <div class="board-block">
+      <h2>Your Waters</h2>
+      <div id="player-board" class="board own"></div>
+    </div>
+    <div class="board-block">
+      <h2>Enemy Waters (click to fire)</h2>
+      <div id="enemy-board" class="board enemy"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch" style="background: var(--ship);"></span> Your Ship</span>
+    <span><span class="swatch" style="background: var(--hit);"></span> Hit</span>
+    <span><span class="swatch" style="background: var(--miss);"></span> Miss</span>
+    <span><span class="swatch" style="background: var(--sunk);"></span> Sunk</span>
+  </div>
+
+  <div class="controls">
+    <button id="restart-btn">New Game</button>
+  </div>
+
+  <div id="log"></div>
+
+  <footer>Built as a simple, from-scratch Battleship implementation. No frameworks, just HTML, CSS, and JavaScript.</footer>
+
+</div>
+
+<script>
+// ---- configuration ----------------------------------------------------
+
+const BOARD_SIZE = 8;
+const COLS = "ABCDEFGH".split("");
+
+const SHIP_TYPES = [
+  { name: "Carrier", size: 4 },
+  { name: "Cruiser", size: 3 },
+  { name: "Submarine", size: 3 },
+  { name: "Destroyer", size: 2 }
+];
+
+// ---- state --------------------------------------------------------------
+
+// each board is an array of BOARD_SIZE arrays of cell objects:
+// { shipId: number|null, hit: bool }
+// ships is an array of { name, size, cells: [[r,c], ...], hits: number }
+
+let playerBoard, enemyBoard, playerShips, enemyShips;
+let gameOver = false;
+let playerTurn = true;
+
+// the computer's simple ai: once it lands a hit, it queues up the neighboring
+// squares and works through them before going back to random guessing.
+let aiQueue = [];
+let aiTried = new Set();
+
+// ---- board setup ----------------------------------------------------
+
+function createEmptyBoard() {
+  const board = [];
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    const row = [];
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      row.push({ shipId: null, hit: false });
+    }
+    board.push(row);
+  }
+  return board;
+}
+
+function inBounds(r, c) {
+  return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
+}
+
+// tries random placements until every ship fits without overlapping
+function placeFleet(board) {
+  const ships = [];
+  let shipId = 0;
+
+  for (const type of SHIP_TYPES) {
+    let placed = false;
+
+    while (!placed) {
+      const horizontal = Math.random() < 0.5;
+      const r = Math.floor(Math.random() * BOARD_SIZE);
+      const c = Math.floor(Math.random() * BOARD_SIZE);
+
+      const cells = [];
+      for (let i = 0; i < type.size; i++) {
+        const rr = horizontal ? r : r + i;
+        const cc = horizontal ? c + i : c;
+        cells.push([rr, cc]);
+      }
+
+      const fits = cells.every(([rr, cc]) => inBounds(rr, cc) && board[rr][cc].shipId === null);
+
+      if (fits) {
+        for (const [rr, cc] of cells) {
+          board[rr][cc].shipId = shipId;
+        }
+        ships.push({ name: type.name, size: type.size, cells, hits: 0 });
+        shipId++;
+        placed = true;
+      }
+    }
+  }
+
+  return ships;
+}
+
+// ---- rendering --------------------------------------------------------
+
+function coordLabel(r, c) {
+  return COLS[c] + (r + 1);
+}
+
+function renderBoards() {
+  renderBoard("player-board", playerBoard, true);
+  renderBoard("enemy-board", enemyBoard, false);
+}
+
+function renderBoard(elementId, board, revealShips) {
+  const el = document.getElementById(elementId);
+  el.style.gridTemplateColumns = `repeat(${BOARD_SIZE}, 34px)`;
+  el.innerHTML = "";
+
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const cellData = board[r][c];
+      const cellEl = document.createElement("div");
+      cellEl.className = "cell";
+      cellEl.dataset.row = r;
+      cellEl.dataset.col = c;
+
+      if (cellData.hit) {
+        if (cellData.shipId !== null) {
+          const ships = revealShips ? playerShips : enemyShips;
+          const ship = ships[cellData.shipId];
+          cellEl.classList.add(ship.hits >= ship.size ? "sunk" : "hit");
+        } else {
+          cellEl.classList.add("miss");
+        }
+      } else if (revealShips && cellData.shipId !== null) {
+        cellEl.classList.add("own", "ship");
+      }
+
+      el.appendChild(cellEl);
+    }
+  }
+}
+
+// ---- game logic --------------------------------------------------------
+
+function fireAt(board, ships, r, c) {
+  // returns { result: "hit"|"miss"|"already", sunkShip: ship|null }
+  const cell = board[r][c];
+
+  if (cell.hit) {
+    return { result: "already", sunkShip: null };
+  }
+
+  cell.hit = true;
+
+  if (cell.shipId === null) {
+    return { result: "miss", sunkShip: null };
+  }
+
+  const ship = ships[cell.shipId];
+  ship.hits++;
+  const sunk = ship.hits >= ship.size;
+  return { result: "hit", sunkShip: sunk ? ship : null };
+}
+
+function logMessage(text, who) {
+  const log = document.getElementById("log");
+  const p = document.createElement("p");
+  p.textContent = text;
+  p.className = who;
+  log.appendChild(p);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setStatus(text) {
+  document.getElementById("status").textContent = text;
+}
+
+function allSunk(ships) {
+  return ships.every(ship => ship.hits >= ship.size);
+}
+
+function handleEnemyCellClick(event) {
+  if (gameOver || !playerTurn) return;
+
+  // use event delegation: the board gets rebuilt from scratch after every
+  // shot, so individual cell elements come and go. the container itself
+  // never gets replaced, so we listen on it and find the cell that was
+  // actually clicked via closest().
+  const cellEl = event.target.closest(".cell");
+  if (!cellEl) return;
+
+  const r = Number(cellEl.dataset.row);
+  const c = Number(cellEl.dataset.col);
+
+  const outcome = fireAt(enemyBoard, enemyShips, r, c);
+  if (outcome.result === "already") return;
+
+  const label = coordLabel(r, c);
+
+  if (outcome.result === "miss") {
+    logMessage(`You fired at ${label}: miss.`, "you");
+  } else if (outcome.sunkShip) {
+    logMessage(`You fired at ${label}: hit, and sank the enemy ${outcome.sunkShip.name}!`, "you");
+  } else {
+    logMessage(`You fired at ${label}: hit!`, "you");
+  }
+
+  renderBoards();
+
+  if (allSunk(enemyShips)) {
+    endGame(true);
+    return;
+  }
+
+  playerTurn = false;
+  setStatus("Computer is thinking...");
+  window.setTimeout(computerTurn, 500);
+}
+
+function pickComputerTarget() {
+  // work through the hunt queue first (squares next to a known hit)
+  while (aiQueue.length > 0) {
+    const [r, c] = aiQueue.shift();
+    const key = `${r},${c}`;
+    if (inBounds(r, c) && !aiTried.has(key)) {
+      return [r, c];
+    }
+  }
+
+  // otherwise pick a random square that hasn't been tried yet
+  let r, c, key;
+  do {
+    r = Math.floor(Math.random() * BOARD_SIZE);
+    c = Math.floor(Math.random() * BOARD_SIZE);
+    key = `${r},${c}`;
+  } while (aiTried.has(key));
+
+  return [r, c];
+}
+
+function computerTurn() {
+  if (gameOver) return;
+
+  const [r, c] = pickComputerTarget();
+  aiTried.add(`${r},${c}`);
+
+  const outcome = fireAt(playerBoard, playerShips, r, c);
+  const label = coordLabel(r, c);
+
+  if (outcome.result === "miss") {
+    logMessage(`Computer fired at ${label}: miss.`, "cpu");
+  } else if (outcome.sunkShip) {
+    logMessage(`Computer fired at ${label}: hit, and sank your ${outcome.sunkShip.name}!`, "cpu");
+    // ship is down, no need to keep hunting around it specifically,
+    // remaining queued cells are harmless and will just get skipped later
+  } else {
+    logMessage(`Computer fired at ${label}: hit!`, "cpu");
+    // queue up the four neighbors to keep hunting this ship
+    aiQueue.push([r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]);
+  }
+
+  renderBoards();
+
+  if (allSunk(playerShips)) {
+    endGame(false);
+    return;
+  }
+
+  playerTurn = true;
+  setStatus("Your move, click a square in Enemy Waters.");
+}
+
+function endGame(playerWon) {
+  gameOver = true;
+  if (playerWon) {
+    setStatus("You sank the entire enemy fleet. You win!");
+    logMessage("Game over: you win.", "you");
+  } else {
+    setStatus("The computer sank your entire fleet. You lose.");
+    logMessage("Game over: computer wins.", "cpu");
+  }
+}
+
+// ---- setup and restart --------------------------------------------------
+
+function attachEnemyBoardHandlers() {
+  // attached once to the container, not to individual cells, since the
+  // cells themselves get torn down and rebuilt on every render
+  const el = document.getElementById("enemy-board");
+  el.addEventListener("click", handleEnemyCellClick);
+}
+
+function startNewGame() {
+  playerBoard = createEmptyBoard();
+  enemyBoard = createEmptyBoard();
+  playerShips = placeFleet(playerBoard);
+  enemyShips = placeFleet(enemyBoard);
+
+  gameOver = false;
+  playerTurn = true;
+  aiQueue = [];
+  aiTried = new Set();
+
+  document.getElementById("log").innerHTML = "";
+  setStatus("Your move, click a square in Enemy Waters.");
+  logMessage("A new game has started. Both fleets are hidden.", "you");
+
+  renderBoards();
+}
+
+// the click listener is delegated to the board container, which is never
+// torn down, so this only needs to run once, not on every restart
+attachEnemyBoardHandlers();
+
+document.getElementById("restart-btn").addEventListener("click", startNewGame);
+
+startNewGame();
+</script>
+
+</body>
+</html>
