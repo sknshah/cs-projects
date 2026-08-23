@@ -23,16 +23,21 @@ public final class PasswordAnalyzer {
     public AnalysisResult analyze(String password) {
         List<String> warnings = new ArrayList<>();
 
+        // no meaningful entropy to compute on nothing, bail out immediately
         if (password == null || password.isEmpty()) {
             warnings.add("the password is empty");
             return new AnalysisResult(0.0, StrengthScore.VERY_WEAK, warnings);
         }
 
+        // a breached password is unsafe regardless of length or character mix,
+        // so this short-circuits the rest of the analysis entirely
         if (CommonPasswords.contains(password)) {
             warnings.add("this is one of the most commonly breached passwords, it would be tried first by any attacker");
             return new AnalysisResult(0.0, StrengthScore.VERY_WEAK, warnings);
         }
 
+        // naive entropy: length times bits per character, based on which
+        // character types are present, this is the starting point before penalties
         int poolSize = characterPoolSize(password);
         double entropyBits = poolSize > 0
             ? password.length() * (Math.log(poolSize) / Math.log(2))
@@ -42,6 +47,8 @@ public final class PasswordAnalyzer {
             warnings.add("shorter than the commonly recommended minimum of 8 characters");
         }
 
+        // each detected pattern below chips away at the naive entropy, since
+        // these patterns make a password far easier to guess than its raw math suggests
         int sequentialRuns = countSequentialRuns(password);
         if (sequentialRuns > 0) {
             warnings.add("contains " + sequentialRuns + " sequential run" + (sequentialRuns > 1 ? "s" : "")
@@ -63,6 +70,8 @@ public final class PasswordAnalyzer {
             entropyBits -= keyboardWalks * 8.0;
         }
 
+        // penalties can drive this below zero for a heavily patterned password,
+        // clamp so the reported entropy never reads as negative
         entropyBits = Math.max(entropyBits, 0.0);
 
         StrengthScore score = scoreFor(entropyBits);
@@ -75,6 +84,7 @@ public final class PasswordAnalyzer {
         boolean hasDigit = false;
         boolean hasSymbol = false;
 
+        // walk every character once to see which character classes are present
         for (int i = 0; i < password.length(); i++) {
             char c = password.charAt(i);
             if (Character.isLowerCase(c)) {
@@ -88,6 +98,8 @@ public final class PasswordAnalyzer {
             }
         }
 
+        // add each class's alphabet size only if that class actually appears,
+        // a password using only lowercase letters should not get credit for digits it never uses
         int pool = 0;
         if (hasLower) {
             pool += 26;
@@ -109,6 +121,8 @@ public final class PasswordAnalyzer {
         int count = 0;
         int runLength = 1;
 
+        // scan adjacent character pairs, extending the current run whenever
+        // consecutive characters climb or descend by exactly one code point
         for (int i = 1; i < lower.length(); i++) {
             int prev = lower.charAt(i - 1);
             int curr = lower.charAt(i);
@@ -118,12 +132,14 @@ public final class PasswordAnalyzer {
             if (ascending || descending) {
                 runLength++;
             } else {
+                // the run just broke, count it if it was long enough, then start fresh
                 if (runLength >= RUN_LENGTH_TO_FLAG) {
                     count++;
                 }
                 runLength = 1;
             }
         }
+        // the string may end mid-run, so check once more after the loop
         if (runLength >= RUN_LENGTH_TO_FLAG) {
             count++;
         }
@@ -134,6 +150,8 @@ public final class PasswordAnalyzer {
         int count = 0;
         int runLength = 1;
 
+        // same run-tracking approach as countSequentialRuns, but the run
+        // continues only while the character is identical to the previous one
         for (int i = 1; i < password.length(); i++) {
             if (password.charAt(i) == password.charAt(i - 1)) {
                 runLength++;
@@ -154,12 +172,16 @@ public final class PasswordAnalyzer {
         String lower = password.toLowerCase();
         int count = 0;
 
+        // check the password against every keyboard row, forwards and backwards,
+        // since a walk like "trewq" is just "qwert" typed in reverse
         for (String row : KEYBOARD_ROWS) {
             String reversed = new StringBuilder(row).reverse().toString();
+            // slide a 4-character window across the password looking for a match
             for (int i = 0; i + 4 <= lower.length(); i++) {
                 String window = lower.substring(i, i + 4);
                 if (row.contains(window) || reversed.contains(window)) {
                     count++;
+                    // one match is enough for this row, move on to the next row
                     break;
                 }
             }
@@ -168,6 +190,7 @@ public final class PasswordAnalyzer {
     }
 
     private StrengthScore scoreFor(double entropyBits) {
+        // fixed entropy thresholds map to the five strength labels, ordered weakest to strongest
         if (entropyBits < 28) {
             return StrengthScore.VERY_WEAK;
         } else if (entropyBits < 36) {
