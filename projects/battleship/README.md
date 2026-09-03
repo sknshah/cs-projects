@@ -4,7 +4,9 @@ A simple, single-player Battleship game you can play directly in your browser: c
 
 ## Why this exists
 
-Skill goal: build a small, genuinely interactive, rules-based game that a complete stranger could open and play without any setup from me, and that explains its own rules to someone who has never played Battleship before.
+Battleship is a strategy and guessing game you'll find on the shelf at pretty much any Target or Walmart, sitting right next to Monopoly and Sorry. I wanted to build a version anyone could play instantly in the browser, no board, no missing pegs, no setup, and one that explains its own rules to someone who has never played before.
+
+![Battleship on a store shelf](battleship_shelf_photo.jpg)
 
 ## Stack
 
@@ -39,6 +41,7 @@ The computer fires at random squares until it lands a hit. Once it hits somethin
 ```
 battleship/
 index.html   <- the entire game: markup, styling, and game logic in one file
+battleship_shelf_photo.jpg   <- photo used in the README
 ```
 
 ## Run it
